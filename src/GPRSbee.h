@@ -109,17 +109,17 @@ public:
 
   bool networkOn();
 
-  bool doHTTPPOST(const char *apn, const char *url, const char *contentType, const char *userdata, const char *postdata, size_t pdlen);
-  bool doHTTPPOST(const char *apn, const String & url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen);
+  bool doHTTPPOST(const char *apn, const char *url, const char *contentType, const char *userdata, const char *postdata, size_t pdlen, int * responseStatus);
+  bool doHTTPPOST(const char *apn, const String & url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus);
   bool doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
-      const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen);
-  bool doHTTPPOSTmiddle(const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen);
-  bool doHTTPPOSTmiddleWithReply(const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, char *buffer, size_t len);
+      const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus);
+  bool doHTTPPOSTmiddle(const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus);
+  bool doHTTPPOSTmiddleWithReply(const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus, char *buffer, size_t len);
 
-  bool doHTTPPOSTWithReply(const char *apn, const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, char *buffer, size_t len);
-  bool doHTTPPOSTWithReply(const char *apn, const String & url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, char *buffer, size_t len);
+  bool doHTTPPOSTWithReply(const char *apn, const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus, char *buffer, size_t len);
+  bool doHTTPPOSTWithReply(const char *apn, const String & url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus, char *buffer, size_t len);
   bool doHTTPPOSTWithReply(const char *apn, const char *apnuser, const char *apnpwd,
-      const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, char *buffer, size_t len);
+      const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus, char *buffer, size_t len);
 
   bool doHTTPGET(const char *apn, const char *url, char *buffer, size_t len);
   bool doHTTPGET(const char *apn, const String & url, char *buffer, size_t len);
@@ -128,7 +128,7 @@ public:
   bool doHTTPGETmiddle(const char *url, char *buffer, size_t len);
 
   bool doHTTPREAD(char *buffer, size_t len);
-  bool doHTTPACTION(char num);
+  bool doHTTPACTION(char num, int * responseStatus);
 
   bool doHTTPprolog(const char *apn);
   bool doHTTPprolog(const char *apn, const char *apnuser, const char *apnpwd);

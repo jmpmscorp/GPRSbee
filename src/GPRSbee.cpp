@@ -1396,7 +1396,7 @@ ending:
  *  - HTTPDATA
  *  - HTTPACTION(1)
  */
-bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char * contentType, const char * userdata, const char *buffer, size_t len)
+bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char * contentType, const char * userdata, const char *buffer, size_t len, int *responseStatus)
 {
   uint32_t ts_max;
   bool retval = false;
@@ -1454,7 +1454,7 @@ bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char * contentType, c
     goto ending;
   }
 
-  if (!doHTTPACTION(1)) {
+  if (!doHTTPACTION(1, responseStatus)) {
     goto ending;
   }
 
@@ -1472,11 +1472,11 @@ ending:
  *  - doHTTPPOSTmiddle() ...
  *  - HTTPREAD
  */
-bool GPRSbeeClass::doHTTPPOSTmiddleWithReply(const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, char *buffer, size_t len)
+bool GPRSbeeClass::doHTTPPOSTmiddleWithReply(const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int *responseStatus, char *buffer, size_t len)
 {
   bool retval = false;;
 
-  if (!doHTTPPOSTmiddle(url, contentType, userdata, postdata, pdlen)) {
+  if (!doHTTPPOSTmiddle(url, contentType, userdata, postdata, pdlen, responseStatus)) {
     goto ending;
   }
 
@@ -1514,7 +1514,7 @@ bool GPRSbeeClass::doHTTPGETmiddle(const char *url, char *buffer, size_t len)
     goto ending;
   }
 
-  if (!doHTTPACTION(0)) {
+  if (!doHTTPACTION(0, NULL)) {
     goto ending;
   }
 
@@ -1620,7 +1620,7 @@ ending:
   return retval;
 }
 
-bool GPRSbeeClass::doHTTPACTION(char num)
+bool GPRSbeeClass::doHTTPACTION(char num, int * status)
 {
   uint32_t ts_max;
   bool retval = false;
@@ -1648,13 +1648,20 @@ bool GPRSbeeClass::doHTTPACTION(char num)
     ++ptr;              // The digit
     ++ptr;              // The comma
     char *bufend;
-    uint8_t replycode = strtoul(ptr, &bufend, 0);
+    Serial.println(ptr);
+    uint16_t replycode = strtoul(ptr, &bufend, 10);
+    Serial.println(bufend);
     if (bufend == ptr) {
       // Invalid number
       goto ending;
     }
-    // TODO Which result codes are allowed to pass?
-    if (replycode == 200) {
+
+    if(status != NULL){
+      Serial.write(replycode);
+      *status = replycode;
+      retval = true;
+    } else if (replycode == 200) {
+      // TODO Which result codes are allowed to pass?
       retval = true;
     } else {
       // Everything else is considered an error
@@ -1667,13 +1674,13 @@ ending:
   return retval;
 }
 
-bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen)
+bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus)
 {
-  return doHTTPPOST(apn, 0, 0, url, contentType, userdata, postdata, pdlen);
+  return doHTTPPOST(apn, 0, 0, url, contentType, userdata, postdata, pdlen, responseStatus);
 }
 
 bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
-    const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen)
+    const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus)
 {
   bool retval = false;
 
@@ -1685,7 +1692,7 @@ bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *
     goto cmd_error;
   }
 
-  if (!doHTTPPOSTmiddle(url, contentType, userdata, postdata, pdlen)) {
+  if (!doHTTPPOSTmiddle(url, contentType, userdata, postdata, pdlen, responseStatus)) {
     goto cmd_error;
   }
 
@@ -1703,13 +1710,13 @@ ending:
 
 
 bool GPRSbeeClass::doHTTPPOSTWithReply(const char *apn,
-    const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, char *buffer, size_t len)
+    const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus, char *buffer, size_t len)
 {
-  return doHTTPPOSTWithReply(apn, 0, 0, url, contentType, userdata, postdata, pdlen, buffer, len);
+  return doHTTPPOSTWithReply(apn, 0, 0, url, contentType, userdata, postdata, pdlen, responseStatus, buffer, len);
 }
 
 bool GPRSbeeClass::doHTTPPOSTWithReply(const char *apn, const char *apnuser, const char *apnpwd,
-    const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, char *buffer, size_t len)
+    const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int * responseStatus, char *buffer, size_t len)
 {
   bool retval = false;
 
@@ -1721,7 +1728,7 @@ bool GPRSbeeClass::doHTTPPOSTWithReply(const char *apn, const char *apnuser, con
     goto cmd_error;
   }
 
-  if (!doHTTPPOSTmiddleWithReply(url, contentType, userdata, postdata, pdlen, buffer, len)) {
+  if (!doHTTPPOSTmiddleWithReply(url, contentType, userdata, postdata, pdlen, responseStatus, buffer, len)) {
     goto cmd_error;
   }
 
