@@ -1319,6 +1319,7 @@ bool GPRSbeeClass::sendFTPdata(uint8_t *data, size_t size)
   }
   return true;
 }
+
 bool GPRSbeeClass::sendFTPdata(uint8_t (*read)(), size_t size)
 {
   // Send the bytes in chunks that are maximized by the maximum
@@ -1393,8 +1394,11 @@ ending:
  *
  * This function does:
  *  - HTTPPARA with the URL
- *  - HTTPDATA
+ *  - HTTPPARA with the Content-Type if is passed
+ *  - HTTPPARA with Userdata (header options) if is passed
+ *  - HTTPDATA  
  *  - HTTPACTION(1)
+ *  - Return HttpStatus if int is passed
  */
 bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char * contentType, const char * userdata, const char *buffer, size_t len, int *responseStatus)
 {
@@ -1403,7 +1407,7 @@ bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char * contentType, c
   char num_bytes[16];
 
   // set http param URL value
-  sendCommandProlog();
+  /*sendCommandProlog();
   sendCommandAdd_P(PSTR("AT+HTTPPARA=\"URL\",\""));
   sendCommandAdd(url);
   sendCommandAdd('"');
@@ -1432,6 +1436,10 @@ bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char * contentType, c
     if(!waitForOK()) {
       goto ending;
     }
+  }*/
+
+  if(!setHTTPParamsSession(url, contentType, userdata)){
+    goto ending;
   }
 
   sendCommandProlog();
@@ -1466,6 +1474,204 @@ ending:
 }
 
 /*!
+ * \brief The middle part of the whole HTTP POST
+ *
+ * This function does:
+ *  - HTTPPARA with the URL
+ *  - HTTPPARA with the Content-Type if is passed
+ *  - HTTPPARA with Userdata (header options) if is passed
+ *  - HTTPDATA  
+ *  - HTTPACTION(1)
+ *  - Return HttpStatus if int is passed
+ */
+bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char * contentType, const char * userdata, Stream * streamReader, size_t len, int *responseStatus)
+{
+  uint32_t ts_max;
+  bool retval = false;
+  char num_bytes[16];
+
+  // set http param URL value
+  /*sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPPARA=\"URL\",\""));
+  sendCommandAdd(url);
+  sendCommandAdd('"');
+  sendCommandEpilog();
+  if (!waitForOK()) {
+    goto ending;
+  }
+
+  if(strlen(contentType) > 0){
+    sendCommandProlog();
+    sendCommandAdd_P(PSTR("AT+HTTPPARA=\"CONTENT\",\""));
+    sendCommandAdd(contentType);
+    sendCommandAdd('"');
+    sendCommandEpilog();
+    if(!waitForOK()) {
+      goto ending;
+    }
+  }
+
+  if(strlen(userdata) > 0){
+    sendCommandProlog();
+    sendCommandAdd_P(PSTR("AT+HTTPPARA=\"USERDATA\",\""));
+    sendCommandAdd(userdata);
+    sendCommandAdd('"');
+    sendCommandEpilog();
+    if(!waitForOK()) {
+      goto ending;
+    }
+  }*/
+
+  if(!setHTTPParamsSession(url, contentType, userdata)){
+    goto ending;
+  }
+
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPDATA="));
+  itoa(len, num_bytes, 10);
+  sendCommandAdd(num_bytes);
+  sendCommandAdd_P(PSTR(",10000"));
+  sendCommandEpilog();
+  ts_max = millis() + 4000;
+  if (!waitForMessage_P(PSTR("DOWNLOAD"), ts_max)) {
+    goto ending;
+  }
+
+  // Send data ...
+  for (size_t i = 0; i < len; ++i) {
+    _modemStream->print((char)streamReader->read());
+  }
+
+  if (!waitForOK()) {
+    goto ending;
+  }
+
+  if (!doHTTPACTION(1, responseStatus)) {
+    goto ending;
+  }
+
+  // All is well if we get here.
+  retval = true;
+
+ending:
+  return retval;
+}
+
+/*!
+ * \brief The middle part of the whole HTTP POST
+ *
+ * This function does:
+ *  - HTTPPARA with the URL
+ *  - HTTPPARA with the Content-Type if is passed
+ *  - HTTPPARA with Userdata (header options) if is passed
+ *  - HTTPDATA  
+ *  - HTTPACTION(1)
+ *  - Return HttpStatus if int is passed
+ */
+bool GPRSbeeClass::doHTTPSPOSTmiddle(const char *url, const char * contentType, const char * userdata, const char *buffer, size_t len, int *responseStatus)
+{
+  uint32_t ts_max;
+  bool retval = false;
+  char num_bytes[16];
+
+  if(!setHTTPParamsSession(url, contentType, userdata, true)){
+    goto ending;
+  }
+
+  sendCommand_P(PSTR("AT+HTTPSSL=1"));
+  if (!waitForOK()) {
+    goto ending;
+  }
+
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPDATA="));
+  itoa(len, num_bytes, 10);
+  sendCommandAdd(num_bytes);
+  sendCommandAdd_P(PSTR(",10000"));
+  sendCommandEpilog();
+  ts_max = millis() + 4000;
+  if (!waitForMessage_P(PSTR("DOWNLOAD"), ts_max)) {
+    goto ending;
+  }
+
+  // Send data ...
+  for (size_t i = 0; i < len; ++i) {
+    _modemStream->print(*buffer++);
+  }
+
+  if (!waitForOK()) {
+    goto ending;
+  }
+
+  if (!doHTTPACTION(1, responseStatus)) {
+    goto ending;
+  }
+
+  // All is well if we get here.
+  retval = true;
+
+ending:
+  return retval;
+}
+
+/*!
+ * \brief The middle part of the whole HTTP POST
+ *
+ * This function does:
+ *  - HTTPPARA with the URL
+ *  - HTTPPARA with the Content-Type if is passed
+ *  - HTTPPARA with Userdata (header options) if is passed
+ *  - HTTPDATA  
+ *  - HTTPACTION(1)
+ *  - Return HttpStatus if int is passed
+ */
+bool GPRSbeeClass::doHTTPSPOSTmiddle(const char *url, const char * contentType, const char * userdata, Stream * streamReader, size_t len, int *responseStatus)
+{
+  uint32_t ts_max;
+  bool retval = false;
+  char num_bytes[16];
+
+  if(!setHTTPParamsSession(url, contentType, userdata, true)){
+    goto ending;
+  }
+
+  sendCommand_P(PSTR("AT+HTTPSSL=1"));
+  if (!waitForOK()) {
+    goto ending;
+  }
+
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPDATA="));
+  itoa(len, num_bytes, 10);
+  sendCommandAdd(num_bytes);
+  sendCommandAdd_P(PSTR(",10000"));
+  sendCommandEpilog();
+  ts_max = millis() + 4000;
+  if (!waitForMessage_P(PSTR("DOWNLOAD"), ts_max)) {
+    goto ending;
+  }
+
+  // Send data ...
+  for (size_t i = 0; i < len; ++i) {
+    _modemStream->print((char)streamReader->read());
+  }
+
+  if (!waitForOK()) {
+    goto ending;
+  }
+
+  if (!doHTTPACTION(1, responseStatus)) {
+    goto ending;
+  }
+
+  // All is well if we get here.
+  retval = true;
+
+ending:
+  return retval;
+}
+
+/*!
  * \brief The middle part of the whole HTTP POST, with a READ
  *
  * This function does:
@@ -1477,6 +1683,89 @@ bool GPRSbeeClass::doHTTPPOSTmiddleWithReply(const char *url, const char * conte
   bool retval = false;;
 
   if (!doHTTPPOSTmiddle(url, contentType, userdata, postdata, pdlen, responseStatus)) {
+    goto ending;
+  }
+
+  // Read all data
+  if (!doHTTPREAD(buffer, len)) {
+    goto ending;
+  }
+
+  // All is well if we get here.
+  retval = true;
+
+ending:
+    return retval;
+}
+
+
+
+/*!
+ * \brief The middle part of the whole HTTP POST, with a READ
+ *
+ * This function does:
+ *  - doHTTPPOSTmiddle() ...
+ *  - HTTPREAD
+ */
+bool GPRSbeeClass::doHTTPPOSTmiddleWithReply(const char *url, const char * contentType, const char * userdata, Stream * streamReader, size_t pdlen, int *responseStatus, char *buffer, size_t len)
+{
+  bool retval = false;;
+
+  if (!doHTTPPOSTmiddle(url, contentType, userdata, streamReader, pdlen, responseStatus)) {
+    goto ending;
+  }
+
+  // Read all data
+  if (!doHTTPREAD(buffer, len)) {
+    goto ending;
+  }
+
+  // All is well if we get here.
+  retval = true;
+
+ending:
+    return retval;
+}
+
+/*!
+ * \brief The middle part of the whole HTTP POST, with a READ
+ *
+ * This function does:
+ *  - doHTTPSPOSTmiddle() ...
+ *  - HTTPREAD
+ */
+bool GPRSbeeClass::doHTTPSPOSTmiddleWithReply(const char *url, const char * contentType, const char * userdata, const char *postdata, size_t pdlen, int *responseStatus, char *buffer, size_t len)
+{
+  bool retval = false;;
+
+  if (!doHTTPSPOSTmiddle(url, contentType, userdata, postdata, pdlen, responseStatus)) {
+    goto ending;
+  }
+
+  // Read all data
+  if (!doHTTPREAD(buffer, len)) {
+    goto ending;
+  }
+
+  // All is well if we get here.
+  retval = true;
+
+ending:
+    return retval;
+}
+
+/*!
+ * \brief The middle part of the whole HTTP POST, with a READ
+ *
+ * This function does:
+ *  - doHTTPPOSTmiddle() ...
+ *  - HTTPREAD
+ */
+bool GPRSbeeClass::doHTTPSPOSTmiddleWithReply(const char *url, const char * contentType, const char * userdata, Stream * streamReader, size_t pdlen, int *responseStatus, char *buffer, size_t len)
+{
+  bool retval = false;;
+
+  if (!doHTTPSPOSTmiddle(url, contentType, userdata, streamReader, pdlen, responseStatus)) {
     goto ending;
   }
 
@@ -1648,16 +1937,13 @@ bool GPRSbeeClass::doHTTPACTION(char num, int * status)
     ++ptr;              // The digit
     ++ptr;              // The comma
     char *bufend;
-    Serial.println(ptr);
     uint16_t replycode = strtoul(ptr, &bufend, 10);
-    Serial.println(bufend);
     if (bufend == ptr) {
       // Invalid number
       goto ending;
     }
 
     if(status != NULL){
-      Serial.write(replycode);
       *status = replycode;
       retval = true;
     } else if (replycode == 200) {
@@ -1669,6 +1955,56 @@ bool GPRSbeeClass::doHTTPACTION(char num, int * status)
   }
 
   // All is well if we get here.
+
+ending:
+  return retval;
+}
+
+bool GPRSbeeClass::setHTTPParamsSession(const char * url, const char * contentType, const char * userdata, bool redir){
+  uint32_t ts_max;
+  bool retval = false;
+  char num_bytes[16];
+
+  // set http param URL value
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPPARA=\"URL\",\""));
+  sendCommandAdd(url);
+  sendCommandAdd('"');
+  sendCommandEpilog();
+  if (!waitForOK()) {
+    goto ending;
+  }
+
+  if(strlen(contentType) > 0){
+    sendCommandProlog();
+    sendCommandAdd_P(PSTR("AT+HTTPPARA=\"CONTENT\",\""));
+    sendCommandAdd(contentType);
+    sendCommandAdd('"');
+    sendCommandEpilog();
+    if(!waitForOK()) {
+      goto ending;
+    }
+  }
+
+  if(strlen(userdata) > 0){
+    sendCommandProlog();
+    sendCommandAdd_P(PSTR("AT+HTTPPARA=\"USERDATA\",\""));
+    sendCommandAdd(userdata);
+    sendCommandAdd('"');
+    sendCommandEpilog();
+    if(!waitForOK()) {
+      goto ending;
+    }
+  }
+
+  if(redir){
+    sendCommand_P(PSTR("AT+HTTPPARA=\"REDIR\",1"));
+    if(!waitForOK()) {
+      goto ending;
+    }
+  }
+
+  retval = true;
 
 ending:
   return retval;
